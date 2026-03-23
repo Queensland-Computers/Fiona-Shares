@@ -15,9 +15,11 @@ jobs:
         fetch-depth: 0
 
     - name: Deploy to Azure via git push (Oryx builds packages automatically)
+      env:
+        GIT_USER: ${{ secrets.AZURE_GIT_USER }}
+        GIT_PASS: ${{ secrets.AZURE_GIT_PASS }}
       run: |
-        # URL-encode the $ in the username
-        ENCODED_USER=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "${{ secrets.AZURE_GIT_USER }}")
-        ENCODED_PASS=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "${{ secrets.AZURE_GIT_PASS }}")
+        ENCODED_USER=$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ['GIT_USER'],safe=''))")
+        ENCODED_PASS=$(python3 -c "import urllib.parse,os; print(urllib.parse.quote(os.environ['GIT_PASS'],safe=''))")
         git remote add azure "https://${ENCODED_USER}:${ENCODED_PASS}@fiona-shares.scm.azurewebsites.net/fiona-shares.git"
         git push azure HEAD:master --force
