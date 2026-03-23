@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ASX50 Share Price Tracker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    header h1 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    #last-updated {
+      font-size: 0.82rem;
+      color: #a0aec0;
+    }
+
+    #refresh-btn {
+      background: #3182ce;
+      color: #fff;
+      border: none;
+      padding: 8px 20px;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    #refresh-btn:hover:not(:disabled) { background: #2b6cb0; }
+    #refresh-btn:disabled { background: #718096; cursor: not-allowed; }
+
+    main {
+      max-width: 1100px;
+      margin: 28px auto;
+      padding: 0 16px;
+    }
+
+    .table-wrapper {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    thead th {
+      background: #2d3748;
+      color: #e2e8f0;
+      padding: 0;
+      font-weight: 600;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    thead th button {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+      padding: 13px 16px;
+      background: none;
+      border: none;
+      color: inherit;
+      font: inherit;
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    thead th button:hover { background: rgba(255,255,255,0.08); }
+    thead th.active button { background: rgba(255,255,255,0.06); }
+
+    thead th.num button { justify-content: flex-end; }
+
+    .sort-icon {
+      font-size: 0.7rem;
+      opacity: 0.4;
+      flex-shrink: 0;
+    }
+
+    thead th.active .sort-icon { opacity: 1; color: #63b3ed; }
+
+    tbody tr {
+      border-bottom: 1px solid #edf2f7;
+      transition: background 0.1s;
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #f7fafc; }
+
+    td {
+      padding: 11px 16px;
+      white-space: nowrap;
+    }
+
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .ticker-badge {
+      display: inline-block;
+      background: #edf2f7;
+      color: #4a5568;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+
+    .change-positive { color: #276749; font-weight: 600; }
+    .change-negative { color: #c53030; font-weight: 600; }
+    .change-neutral  { color: #718096; }
+
+    .na { color: #a0aec0; font-style: italic; }
+
+    .spinner-row td {
+      padding: 60px 16px;
+      text-align: center;
+      color: #718096;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 32px;
+      height: 32px;
+      border: 3px solid #e2e8f0;
+      border-top-color: #3182ce;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 12px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    footer {
+      max-width: 1100px;
+      margin: 14px auto 40px;
+      padding: 0 16px;
+      font-size: 0.78rem;
+      color: #718096;
+      line-height: 1.6;
+    }
+
+    footer p { margin-top: 4px; }
+
+    @media (max-width: 600px) {
+      thead th:nth-child(1) { display: none; }
+      td:nth-child(1) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>ASX50 Share Price Tracker</h1>
+  <div class="header-right">
+    <span id="last-updated"></span>
+    <button id="refresh-btn" onclick="refreshCurrent()">Refresh Prices</button>
+  </div>
+</header>
+
+<main>
+  <div class="table-wrapper">
+    <table id="price-table">
+      <thead>
+        <tr>
+          <th id="th-idx">
+            <button onclick="sortBy('idx')"># <span class="sort-icon">↕</span></button>
+          </th>
+          <th id="th-company">
+            <button onclick="sortBy('company')">Company <span class="sort-icon">↕</span></button>
+          </th>
+          <th id="th-ticker">
+            <button onclick="sortBy('ticker')">Ticker <span class="sort-icon">↕</span></button>
+          </th>
+          <th id="th-hist" class="num">
+            <button onclick="sortBy('hist')">Price (28 Feb 2026*) <span class="sort-icon">↕</span></button>
+          </th>
+          <th id="th-curr" class="num">
+            <button onclick="sortBy('curr')">Current Price <span class="sort-icon">↕</span></button>
+          </th>
+          <th id="th-pct" class="num">
+            <button onclick="sortBy('pct')">Change % <span class="sort-icon">↕</span></button>
+          </th>
+        </tr>
+      </thead>
+      <tbody id="table-body">
+        <tr class="spinner-row">
+          <td colspan="6">
+            <span class="spinner"></span>
+            Loading prices…
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<footer>
+  <p>* 27 Feb 2026 closing price used (28 Feb 2026 was a Saturday — ASX closed).</p>
+  <p>Prices delayed ~20 minutes during ASX trading hours (10:00–16:00 AEST).</p>
+</footer>
+
+<script>
+  const COMPANY_NAMES = {
+    "ANZ.AX": "ANZ Group",
+    "BHP.AX": "BHP Group",
+    "CBA.AX": "Commonwealth Bank",
+    "WBC.AX": "Westpac Banking",
+    "NAB.AX": "National Australia Bank",
+    "MQG.AX": "Macquarie Group",
+    "WES.AX": "Wesfarmers",
+    "CSL.AX": "CSL Limited",
+    "TLS.AX": "Telstra Group",
+    "GMG.AX": "Goodman Group",
+    "RIO.AX": "Rio Tinto",
+    "WOW.AX": "Woolworths Group",
+    "TCL.AX": "Transurban Group",
+    "FMG.AX": "Fortescue",
+    "REA.AX": "REA Group",
+    "STO.AX": "Santos",
+    "COL.AX": "Coles Group",
+    "IAG.AX": "Insurance Australia Group",
+    "ALL.AX": "Aristocrat Leisure",
+    "QBE.AX": "QBE Insurance",
+    "ASX.AX": "ASX Limited",
+    "SUN.AX": "Suncorp Group",
+    "SCG.AX": "Scentre Group",
+    "XRO.AX": "Xero",
+    "MPL.AX": "Medibank Private",
+    "RMD.AX": "ResMed",
+    "SHL.AX": "Sonic Healthcare",
+    "APA.AX": "APA Group",
+    "AMC.AX": "Amcor",
+    "TLC.AX": "The Lottery Corporation",
+    "MIN.AX": "Mineral Resources",
+    "JHX.AX": "James Hardie Industries",
+    "CPU.AX": "Computershare",
+    "BXB.AX": "Brambles",
+    "ORG.AX": "Origin Energy",
+    "AGL.AX": "AGL Energy",
+    "NST.AX": "Northern Star Resources",
+    "EVN.AX": "Evolution Mining",
+    "TWE.AX": "Treasury Wine Estates",
+    "WTC.AX": "WiseTech Global",
+    "NXT.AX": "NextDC",
+    "CWY.AX": "Cleanaway Waste Management",
+    "SOL.AX": "Washington H. Soul Pattinson",
+    "PPT.AX": "Perpetual",
+    "CAR.AX": "CAR Group",
+    "ALX.AX": "Atlas Arteria",
+    "DOW.AX": "Downer EDI",
+    "IFL.AX": "Insignia Financial",
+    "360.AX": "Life360",
+    "PME.AX": "Pro Medicus",
+  };
+
+  // tableData: array of { idx, ticker, company, hist, curr, pct }
+  let tableData = [];
+  let sortCol = 'idx';
+  let sortDir = 'asc';
+
+  function calcPct(hist, curr) {
+    if (hist === null || curr === null) return null;
+    return ((curr - hist) / hist) * 100;
+  }
+
+  function fmt(val) {
+    if (val === null || val === undefined) return '<span class="na">N/A</span>';
+    return '$' + val.toFixed(2);
+  }
+
+  function fmtPct(pct) {
+    if (pct === null || pct === undefined) return '<span class="na">N/A</span>';
+    const sign = pct >= 0 ? '+' : '';
+    const cls = pct > 0 ? 'change-positive' : pct < 0 ? 'change-negative' : 'change-neutral';
+    return `<span class="${cls}">${sign}${pct.toFixed(2)}%</span>`;
+  }
+
+  function getSortedData() {
+    return [...tableData].sort((a, b) => {
+      let av = a[sortCol], bv = b[sortCol];
+      // nulls always last
+      if (av === null && bv === null) return 0;
+      if (av === null) return 1;
+      if (bv === null) return -1;
+      let cmp = typeof av === 'string' ? av.localeCompare(bv) : av - bv;
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }
+
+  function renderTable() {
+    const tbody = document.getElementById('table-body');
+    const sorted = getSortedData();
+    tbody.innerHTML = sorted.map(row => `<tr>
+      <td class="num">${row.idx}</td>
+      <td>${row.company}</td>
+      <td><span class="ticker-badge">${row.ticker.replace('.AX','')}</span></td>
+      <td class="num">${fmt(row.hist)}</td>
+      <td class="num">${fmt(row.curr)}</td>
+      <td class="num">${fmtPct(row.pct)}</td>
+    </tr>`).join('');
+    updateHeaderIcons();
+  }
+
+  function updateHeaderIcons() {
+    const cols = ['idx','company','ticker','hist','curr','pct'];
+    cols.forEach(col => {
+      const th = document.getElementById(`th-${col}`);
+      if (!th) return;
+      const icon = th.querySelector('.sort-icon');
+      if (col === sortCol) {
+        th.classList.add('active');
+        icon.textContent = sortDir === 'asc' ? '↑' : '↓';
+      } else {
+        th.classList.remove('active');
+        icon.textContent = '↕';
+      }
+    });
+  }
+
+  function sortBy(col) {
+    if (sortCol === col) {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortCol = col;
+      sortDir = col === 'pct' ? 'desc' : 'asc'; // default Change% descending
+    }
+    renderTable();
+  }
+
+  function setLastUpdated() {
+    const now = new Date();
+    const ts = now.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    document.getElementById('last-updated').textContent = `Last updated: ${ts}`;
+  }
+
+  async function refreshCurrent() {
+    const btn = document.getElementById('refresh-btn');
+    btn.disabled = true;
+    btn.textContent = 'Refreshing…';
+    try {
+      const res = await fetch('/api/current');
+      const current = await res.json();
+      tableData.forEach(row => {
+        row.curr = current[row.ticker] ?? null;
+        row.pct  = calcPct(row.hist, row.curr);
+      });
+      renderTable();
+      setLastUpdated();
+    } catch (e) {
+      console.error('Refresh failed:', e);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Refresh Prices';
+    }
+  }
+
+  async function init() {
+    try {
+      const res = await fetch('/api/prices');
+      const data = await res.json();
+      const tickers = Object.keys(COMPANY_NAMES);
+      tableData = tickers.map((ticker, i) => {
+        const hist = data.historical[ticker] ?? null;
+        const curr = data.current[ticker] ?? null;
+        return {
+          idx: i + 1,
+          ticker,
+          company: COMPANY_NAMES[ticker] || ticker,
+          hist,
+          curr,
+          pct: calcPct(hist, curr),
+        };
+      });
+      renderTable();
+      setLastUpdated();
+    } catch (e) {
+      document.getElementById('table-body').innerHTML =
+        `<tr class="spinner-row"><td colspan="6">Failed to load data. Please try refreshing.</td></tr>`;
+      console.error(e);
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>
