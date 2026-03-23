@@ -1,6 +1,5 @@
 import math
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, timedelta
 from flask import Flask, jsonify, render_template
 import yfinance as yf
 
@@ -100,10 +99,8 @@ def _fetch_close(tickers, **kwargs):
 def prices():
     """Returns both historical and current prices fetched in parallel."""
     try:
-        end = date.today() - timedelta(days=1)
-        start = end - timedelta(days=27)
         with ThreadPoolExecutor(max_workers=2) as executor:
-            f_hist = executor.submit(_fetch_close, TICKERS, start=start.isoformat(), end=(start + timedelta(days=5)).isoformat())
+            f_hist = executor.submit(_fetch_close, TICKERS, start="2026-02-25", end="2026-03-01")
             f_curr = executor.submit(_fetch_close, TICKERS, period="1d", interval="1d")
             historical = f_hist.result()
             current = f_curr.result()
