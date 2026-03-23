@@ -12,14 +12,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python version
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-
-    - name: Install dependencies into package folder
-      run: pip install -r requirements.txt --target=".python_packages/lib/site-packages"
-
     - name: Create deployment zip
       run: |
         zip -r deploy.zip . \
@@ -36,7 +28,16 @@ jobs:
           --header "Authorization: Basic ${{ secrets.AZURE_SCM_B64 }}" \
           --header "Content-Type: application/zip" \
           --data-binary @deploy.zip \
-          --fail \
-          --show-error \
-          --silent \
+          --fail --show-error --silent \
+          -w "\nHTTP Status: %{http_code}\n"
+
+    - name: Install Python dependencies on Azure
+      run: |
+        curl -X POST \
+          "https://fiona-shares.scm.azurewebsites.net/api/command" \
+          --header "Authorization: Basic ${{ secrets.AZURE_SCM_B64 }}" \
+          --header "Content-Type: application/json" \
+          --data '{"command":"pip install -r requirements.txt --target .python_packages/lib/site-packages --quiet","dir":"/home/site/wwwroot"}' \
+          --max-time 300 \
+          --fail --show-error --silent \
           -w "\nHTTP Status: %{http_code}\n"
