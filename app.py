@@ -87,7 +87,7 @@ def index():
 
 
 def _fetch_close(tickers, **kwargs):
-    data = yf.download(tickers, auto_adjust=True, progress=False, **kwargs)
+    data = yf.download(tickers, auto_adjust=True, progress=False, threads=True, **kwargs)
     last_row = data["Close"].iloc[-1]
     result = {}
     for ticker in tickers:
@@ -101,7 +101,7 @@ def prices():
     try:
         with ThreadPoolExecutor(max_workers=2) as executor:
             f_hist = executor.submit(_fetch_close, TICKERS, start="2026-02-25", end="2026-03-01")
-            f_curr = executor.submit(_fetch_close, TICKERS, period="1d", interval="1d")
+            f_curr = executor.submit(_fetch_close, TICKERS, period="5d", interval="1d")
             historical = f_hist.result()
             current = f_curr.result()
         return jsonify({"historical": historical, "current": current})
@@ -112,7 +112,7 @@ def prices():
 @app.route("/api/current")
 def current():
     try:
-        result = _fetch_close(TICKERS, period="1d", interval="1d")
+        result = _fetch_close(TICKERS, period="5d", interval="1d")
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
