@@ -1,5 +1,4 @@
 import math
-from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, jsonify, render_template
 import yfinance as yf
 
@@ -99,11 +98,8 @@ def _fetch_close(tickers, **kwargs):
 def prices():
     """Returns both historical and current prices fetched in parallel."""
     try:
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            f_hist = executor.submit(_fetch_close, TICKERS, start="2026-02-25", end="2026-03-01")
-            f_curr = executor.submit(_fetch_close, TICKERS, period="5d", interval="1d")
-            historical = f_hist.result()
-            current = f_curr.result()
+        historical = _fetch_close(TICKERS, start="2026-02-25", end="2026-03-01")
+        current = _fetch_close(TICKERS, period="5d", interval="1d")
         return jsonify({"historical": historical, "current": current})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
